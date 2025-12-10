@@ -1,147 +1,142 @@
-# 🚀 Kasparro AI - Multi-Agent Content Generation System
+# Kasparro AI — Multi-Agent Content Generation System
 
-> *"Let intelligent agents do the heavy lifting."*
+A DAG-based multi-agent system that generates structured content pages from product data using LLM-powered autonomous agents.
 
-Ever wondered what happens when you let AI agents work together like a team? This project is exactly that — a **smart, collaborative system** where 5 specialized AI agents generate rich content pages from simple product data.
+## Overview
 
-Give it a product, and it'll create:
-- 📋 **FAQ pages** with 15 thoughtful Q&As
-- 📦 **Product pages** with compelling descriptions
-- ⚖️ **Comparison pages** with competitor analysis
+This system demonstrates how multiple specialized AI agents can collaborate to produce rich content. Given product information, the pipeline generates:
 
-All powered by **Groq's blazing-fast LLM** (Llama 3.3 70B) and orchestrated through a clean DAG pipeline.
+- **FAQ Pages** — 15 categorized Q&As addressing common customer concerns
+- **Product Pages** — Compelling descriptions with benefits, usage, and safety information
+- **Comparison Pages** — Competitive analysis with auto-generated competitor benchmarking
 
----
-
-## ✨ What Makes This Special?
-
-| Feature | Why It Matters |
-|---------|---------------|
-| **Autonomous Agents** | Each agent thinks for itself — knows when to run based on what others have done |
-| **DAG Orchestration** | No tangled dependencies. Clean, predictable execution order |
-| **LLM-Powered** | Groq's Llama 3.3 70B generates human-quality content in seconds |
-| **Modular Design** | Swap out agents, templates, or the LLM provider without breaking anything |
-| **Production-Ready** | Rate limiting, retries, error handling — it's all built in |
+The architecture emphasizes **agent autonomy**, **modular design**, and **clean dependency management** through DAG-based orchestration.
 
 ---
 
-## 📁 Project Structure
+## Key Features
+
+| Feature | Description |
+|---------|-------------|
+| Autonomous Agents | Each agent independently determines when to execute based on dependency satisfaction |
+| DAG Orchestration | Clean, predictable execution order with parallel processing where possible |
+| LLM Integration | Powered by Groq's Llama 3.3 70B for fast, high-quality content generation |
+| Modular Architecture | Easily swap agents, templates, or LLM providers without system-wide changes |
+| Production-Ready | Built-in rate limiting, retry logic, and graceful error handling |
+
+---
+
+## Project Structure
 
 ```
-📦 kasparro-ai-content-generation/
-├── 🎯 main.py                    # Start here — runs the whole pipeline
-├── 📂 src/
-│   ├── 🎭 orchestrator.py        # The conductor — coordinates all agents
-│   ├── 🤖 llm_client.py          # Talks to Groq's API
-│   ├── 🛠️ utils.py               # Helper functions
-│   ├── 📂 agents/                # The team of 5 specialists
-│   │   ├── base_agent.py         # What every agent inherits
-│   │   ├── parser_agent.py       # Validates & structures data
-│   │   ├── question_agent.py     # Generates smart questions
-│   │   ├── faq_agent.py          # Answers those questions
-│   │   ├── product_agent.py      # Creates product copy
-│   │   └── comparison_agent.py   # Builds competitor comparisons
-│   ├── 📂 models/                # Pydantic schemas
-│   ├── 📂 templates/             # Output formatters
-│   └── 📂 content_blocks/        # Utility generators
-├── 📂 output/                    # Where the magic lands
-└── 📂 docs/                      # You're reading part of this!
+├── main.py                     # Application entry point
+├── src/
+│   ├── orchestrator.py         # DAG-based agent coordination
+│   ├── llm_client.py           # Groq API integration
+│   ├── utils.py                # Utility functions
+│   ├── agents/                 # Agent implementations
+│   │   ├── base_agent.py       # Abstract base class
+│   │   ├── parser_agent.py     # Data validation agent
+│   │   ├── question_agent.py   # Question generation agent
+│   │   ├── faq_agent.py        # FAQ generation agent
+│   │   ├── product_agent.py    # Product page agent
+│   │   └── comparison_agent.py # Comparison agent
+│   ├── models/                 # Pydantic data schemas
+│   ├── templates/              # Output structure templates
+│   └── content_blocks/         # Utility generators
+├── output/                     # Generated JSON files
+└── docs/                       # Documentation
 ```
 
 ---
 
-## 🏃 Quick Start
+## Getting Started
 
-### 1️⃣ Install dependencies
+### Prerequisites
+- Python 3.8+
+- Groq API key ([Get one free](https://console.groq.com/))
+
+### Installation
+
 ```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-### 2️⃣ Add your Groq API key
-Create a `.env` file:
-```
-GROQ_API_KEY=your_api_key_here
-```
-👉 Get one free at [console.groq.com](https://console.groq.com/)
+# Configure environment
+echo "GROQ_API_KEY=your_api_key_here" > .env
 
-### 3️⃣ Run it!
-```bash
+# Run the pipeline
 python main.py
 ```
 
-That's it! Check the `output/` folder for your generated content.
+### Output
+
+After execution, check the `output/` directory for:
+
+| File | Contents |
+|------|----------|
+| `faq.json` | 15 Q&As across 5 categories (Informational, Safety, Usage, Purchase, Comparison) |
+| `product_page.json` | Complete product page with all content sections |
+| `comparison_page.json` | Side-by-side comparison with generated competitor analysis |
 
 ---
 
-## 🔄 How It Works (The Agent DAG)
+## Architecture
 
-Think of it like a relay race — each agent waits for the right moment to run:
+### Agent Dependency Graph (DAG)
 
 ```
-     🏁 START
-         │
-    ┌────▼────┐
-    │ Parser  │  ← First up: validates the product data
-    └────┬────┘
-         │
-    ┌────┴────┬─────────────┐
-    ▼         ▼             ▼
+         ┌─────────┐
+         │ Parser  │  ← Runs first (no dependencies)
+         └────┬────┘
+              │
+    ┌─────────┼─────────┐
+    │         │         │
+    ▼         ▼         ▼
 ┌─────────┐ ┌─────────┐ ┌────────────┐
-│Questions│ │ Product │ │ Comparison │  ← These three can run together
+│Questions│ │ Product │ │ Comparison │  ← Depend on Parser
 └────┬────┘ └─────────┘ └────────────┘
      │
      ▼
  ┌───────┐
- │  FAQ  │  ← Waits for Questions to finish first
+ │  FAQ  │  ← Depends on Parser + Questions
  └───────┘
-     │
-     ▼
-   🏆 DONE
 ```
 
-| Agent | Waits For | What It Does |
-|-------|-----------|--------------|
-| **Parser** | Nothing | Validates product data into a clean model |
-| **Questions** | Parser | Generates 15 diverse user questions |
-| **Product** | Parser | Creates compelling product page copy |
-| **Comparison** | Parser | Builds a competitor product + analysis |
-| **FAQ** | Parser + Questions | Answers all those questions |
+### Agent Summary
+
+| Agent | Dependencies | Purpose | Uses LLM |
+|-------|--------------|---------|----------|
+| DataParserAgent | None | Validates product data into Pydantic model | No |
+| QuestionGenerationAgent | Parser | Generates 15 diverse user questions | Yes |
+| ProductPageAgent | Parser | Creates marketing copy and product descriptions | Yes |
+| ComparisonAgent | Parser | Generates competitor product and analysis | Yes |
+| FAQGenerationAgent | Parser, Questions | Produces answers for generated questions | Yes |
 
 ---
 
-## 📄 What You Get
+## Documentation
 
-Three beautifully structured JSON files in `output/`:
+For detailed architecture documentation, design decisions, and implementation details, see:
 
-| File | What's Inside |
-|------|---------------|
-| `faq.json` | 15 Q&As covering safety, usage, benefits, and more |
-| `product_page.json` | Full product page with descriptions, benefits, usage tips |
-| `comparison_page.json` | Side-by-side comparison with a generated competitor |
+**[docs/projectdocumentation.md](docs/projectdocumentation.md)**
 
 ---
 
-## 📚 Learn More
+## Technology Stack
 
-Curious about the architecture? Check out the full documentation:
-- 📖 [`docs/projectdocumentation.md`](docs/projectdocumentation.md)
-
----
-
-## 🛠️ Tech Stack
-
-- **Python 3.8+** — the foundation
-- **Groq Cloud** — for lightning-fast LLM inference
-- **Llama 3.3 70B** — the brain behind the content
-- **Pydantic** — keeping data clean and validated
-- **python-dotenv** — for safe API key management
+| Component | Technology |
+|-----------|------------|
+| Language | Python 3.8+ |
+| LLM Provider | Groq Cloud |
+| Model | Llama 3.3 70B Versatile |
+| Data Validation | Pydantic |
+| Environment Management | python-dotenv |
 
 ---
 
-## 💡 Pro Tips
+## Notes
 
-1. **Rate limits got you down?** The system automatically waits and retries. Just be patient.
-2. **Want different content?** Edit the product data in `main.py` and run again.
-3. **Building on this?** The modular design makes it easy to add new agents!
-
----
+- **Rate Limits**: The system includes automatic retry with exponential backoff for API rate limits
+- **Customization**: Modify product data in `main.py` to generate content for different products
+- **Extensibility**: The modular design supports adding new agents with minimal changes to existing code

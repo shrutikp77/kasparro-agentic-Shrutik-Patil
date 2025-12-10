@@ -1,295 +1,277 @@
-# 📖 Multi-Agent Content Generation System — Full Documentation
+# Multi-Agent Content Generation System — Technical Documentation
 
-> *A deep dive into how 5 AI agents work together to generate content.*
-
----
-
-## 🎯 The Problem We're Solving
-
-Traditional content generation is a mess. You've probably seen it:
-
-- **Monolithic scripts** that mix data processing, business logic, and output formatting into one giant file
-- **Spaghetti dependencies** where changing one thing breaks everything else
-- **Zero reusability** — need a new content type? Write everything from scratch
-
-We wanted something better. Something that feels more like a **team of specialists** than a one-size-fits-all script.
+This document provides a comprehensive overview of the system architecture, design decisions, and implementation details.
 
 ---
 
-## 💡 Our Solution: A Team of Autonomous Agents
+## Problem Statement
 
-Imagine you're running a content agency. You wouldn't have one person do everything. You'd have:
+Traditional content generation approaches often suffer from:
 
-1. **A data person** who cleans and validates incoming data
-2. **A researcher** who comes up with the right questions to ask
-3. **A product writer** who crafts compelling descriptions
-4. **A comparison analyst** who benchmarks against competitors
-5. **An FAQ specialist** who answers customer questions
+- **Monolithic design** — Data processing, content logic, and formatting tightly coupled in single scripts
+- **Poor maintainability** — Changes in one area cascade unpredictably to others
+- **Limited reusability** — Adding new content types requires significant rework
 
-That's exactly what we built — but with AI agents.
-
-### How They Work Together
-
-Each agent is **autonomous**:
-- It knows what it needs before it can start (its *dependencies*)
-- It decides on its own when those dependencies are satisfied
-- It does its job and publishes results for others to use
-
-The **orchestrator** simply keeps track of who's done and kicks off whoever's ready next. It doesn't micromanage — just coordinates.
+Our goal was to build a system where specialized agents work autonomously, coordinated through a clean dependency graph, producing structured content that's easy to extend and maintain.
 
 ---
 
-## 🏗️ Architecture Overview
+## Solution Approach
 
-Here's the big picture:
+We implemented a **DAG-based multi-agent system** with the following characteristics:
+
+| Principle | Implementation |
+|-----------|----------------|
+| Agent Autonomy | Each agent determines its own readiness based on dependency satisfaction |
+| Single Responsibility | One agent, one job — no overlap in responsibilities |
+| Shared State Communication | Agents exchange data through a common dictionary, not direct calls |
+| Template-Based Output | Standardized output structures with validation |
+| LLM-Powered Generation | Groq API for intelligent, context-aware content creation |
+
+---
+
+## System Architecture
+
+### High-Level Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     ORCHESTRATOR                            │
-│  "I keep track of who's done and start whoever's ready"     │
+│                      ORCHESTRATOR                           │
+│   Coordinates agent execution based on dependency graph     │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │   ┌─────────────────────────────────────────────────────┐   │
-│   │              📦 SHARED DATA STATE                   │   │
-│   │   "This is where agents drop off their work for     │   │
-│   │    other agents to pick up"                         │   │
+│   │                 SHARED DATA STATE                   │   │
+│   │   Central storage for agent inputs and outputs      │   │
 │   └─────────────────────────────────────────────────────┘   │
 │                            │                                │
 │          ┌─────────────────┼─────────────────┐              │
 │          ▼                 ▼                 ▼              │
 │     ┌─────────┐      ┌──────────┐      ┌──────────┐        │
-│     │ 🤖 5    │      │ 🧠 LLM   │      │ 📝 3     │        │
-│     │ Agents  │      │ Client   │      │Templates │        │
+│     │ Agents  │      │   LLM    │      │Templates │        │
+│     │  (5x)   │      │  Client  │      │   (3x)   │        │
 │     └─────────┘      └──────────┘      └──────────┘        │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
----
+### Component Responsibilities
 
-## 👥 Meet the Agents
-
-### 1. 🔍 Data Parser Agent
-
-**The Gatekeeper**
-
-| | |
-|---|---|
-| **Job** | Take raw product data and turn it into a clean, validated model |
-| **Waits for** | Nothing — it goes first |
-| **Uses LLM?** | No — pure validation |
-| **Output** | A Pydantic `Product` model that everyone else can trust |
-
-This agent is simple but crucial. Garbage in, garbage out — so it makes sure the data is solid before anyone else touches it.
+| Component | Purpose |
+|-----------|---------|
+| **Orchestrator** | Manages execution loop, tracks completion, enforces dependencies |
+| **Agents** | Execute specific content generation tasks autonomously |
+| **LLM Client** | Handles API communication, retries, and JSON parsing |
+| **Templates** | Validate and structure final outputs |
+| **Models** | Pydantic schemas for data validation |
 
 ---
 
-### 2. ❓ Question Generation Agent
+## Agent Specifications
 
-**The Curious One**
+### 1. Data Parser Agent
 
-| | |
-|---|---|
-| **Job** | Generate 15 diverse questions a real user might ask |
-| **Waits for** | Parser |
-| **Uses LLM?** | Yes — crafts natural, varied questions |
-| **Output** | Questions across 5 categories: Informational, Safety, Usage, Purchase, Comparison |
+| Property | Value |
+|----------|-------|
+| Agent ID | `parser` |
+| Dependencies | None |
+| Input | Raw product JSON from `shared_data["raw_input"]` |
+| Output | Validated `Product` Pydantic model |
+| LLM Usage | None — performs validation only |
 
-Why not hardcode questions? Because real users ask things in unexpected ways. The LLM generates questions that feel human.
-
----
-
-### 3. 📦 Product Page Agent
-
-**The Copywriter**
-
-| | |
-|---|---|
-| **Job** | Create compelling product page content |
-| **Waits for** | Parser |
-| **Uses LLM?** | Yes — writes marketing copy |
-| **Output** | Description, benefits, usage instructions, ingredient explanations, safety info |
-
-This is your product storyteller. It takes dry data and turns it into content that sells.
+**Purpose**: Serves as the entry point, ensuring all downstream agents receive clean, validated data. Runs first since it has no dependencies.
 
 ---
 
-### 4. ⚖️ Comparison Agent
+### 2. Question Generation Agent
 
-**The Analyst**
+| Property | Value |
+|----------|-------|
+| Agent ID | `questions` |
+| Dependencies | `["parser"]` |
+| Input | `Product` model from parser output |
+| Output | List of 15 `Question` objects across 5 categories |
+| LLM Usage | Generates diverse, natural user questions |
 
-| | |
-|---|---|
-| **Job** | Generate a competitor product and analyze differences |
-| **Waits for** | Parser |
-| **Uses LLM?** | Yes (twice!) — first to create a competitor, then to compare |
-| **Output** | Two products side-by-side with ingredient, price, and effectiveness comparisons |
-
-The clever part: it *invents* a realistic competitor. No external data needed — just smart LLM prompting.
-
----
-
-### 5. 💬 FAQ Generation Agent
-
-**The Helper**
-
-| | |
-|---|---|
-| **Job** | Answer all the questions from the Question Agent |
-| **Waits for** | Parser AND Questions |
-| **Uses LLM?** | Yes — generates helpful, accurate answers |
-| **Output** | 15 Q&A pairs ready for a FAQ page |
-
-This agent has the most dependencies because it needs both the product data AND the questions before it can work.
+**Purpose**: Creates realistic questions a user might ask about the product. Categories include Informational, Safety, Usage, Purchase, and Comparison.
 
 ---
 
-## 🔄 The Execution Flow
+### 3. Product Page Agent
 
-Let's walk through what happens when you run `python main.py`:
+| Property | Value |
+|----------|-------|
+| Agent ID | `product` |
+| Dependencies | `["parser"]` |
+| Input | `Product` model from parser output |
+| Output | Structured product page dictionary |
+| LLM Usage | Generates marketing copy and descriptions |
+
+**Purpose**: Transforms raw product data into compelling marketing content including descriptions, benefits explanations, usage guidance, and safety information.
+
+---
+
+### 4. Comparison Agent
+
+| Property | Value |
+|----------|-------|
+| Agent ID | `comparison` |
+| Dependencies | `["parser"]` |
+| Input | `Product` model from parser output |
+| Output | Comparison page with two products and analysis |
+| LLM Usage | Two calls — generates competitor, then comparative analysis |
+
+**Purpose**: Creates a realistic competitive comparison by first generating a fictional competitor product, then analyzing differences in ingredients, pricing, and effectiveness.
+
+---
+
+### 5. FAQ Generation Agent
+
+| Property | Value |
+|----------|-------|
+| Agent ID | `faq` |
+| Dependencies | `["parser", "questions"]` |
+| Input | `Product` model + list of `Question` objects |
+| Output | FAQ page with Q&A pairs |
+| LLM Usage | Generates helpful, accurate answers |
+
+**Purpose**: Takes the generated questions and produces informative answers based on product data. Runs last due to its dependency on both parser and question agent outputs.
+
+---
+
+## Execution Flow
+
+### DAG Structure
 
 ```
-1️⃣  INITIALIZE
-    └── Create all 5 agent instances
-    └── Set up the shared data dictionary
-    └── Configure rate limiting (5 sec between LLM agents)
-
-2️⃣  LOAD DATA
-    └── Product data goes into shared_data["raw_input"]
-
-3️⃣  RUN THE DAG
-    └── Loop until everyone's done:
-        ├── "Who can run?" (check dependencies)
-        ├── Run those agents
-        ├── Store their outputs
-        ├── Wait for rate limits if needed
-        └── Repeat
-
-4️⃣  COLLECT RESULTS
-    └── Grab FAQ, Product, and Comparison outputs
-
-5️⃣  SAVE FILES
-    └── Write everything to output/ as JSON
+         ┌─────────┐
+         │ Parser  │
+         └────┬────┘
+              │
+    ┌─────────┼─────────┐
+    │         │         │
+    ▼         ▼         ▼
+┌─────────┐ ┌─────────┐ ┌────────────┐
+│Questions│ │ Product │ │ Comparison │
+└────┬────┘ └─────────┘ └────────────┘
+     │
+     ▼
+ ┌───────┐
+ │  FAQ  │
+ └───────┘
 ```
+
+### Execution Sequence
+
+1. **Initialization**
+   - Create all 5 agent instances
+   - Initialize shared data dictionary
+   - Configure rate limit delays (5 seconds between LLM-using agents)
+
+2. **Data Loading**
+   - Product data placed in `shared_data["raw_input"]`
+
+3. **DAG Execution Loop**
+   - Identify agents with satisfied dependencies
+   - Execute ready agents
+   - Store outputs in `shared_data[agent_id]`
+   - Apply rate limiting between LLM calls
+   - Repeat until all agents complete
+
+4. **Output Collection**
+   - Gather FAQ, product, and comparison outputs
+   - Write to JSON files in `output/` directory
 
 ---
 
-## 🔀 The DAG (Who Waits for Whom)
+## LLM Integration
 
-This is the dependency graph:
-
-```
-                    ┌─────────┐
-        START ────▶ │ Parser  │
-                    └────┬────┘
-                         │
-         ┌───────────────┼───────────────┐
-         │               │               │
-         ▼               ▼               ▼
-    ┌─────────┐    ┌─────────┐    ┌────────────┐
-    │Questions│    │ Product │    │ Comparison │
-    └────┬────┘    └─────────┘    └────────────┘
-         │              │               │
-         │              └───────┬───────┘
-         │                      │
-         ▼                      ▼
-     ┌───────┐              COMPLETE
-     │  FAQ  │                  ▲
-     └───┬───┘                  │
-         └──────────────────────┘
-```
-
-**Translation:**
-1. Parser runs first (no dependencies)
-2. Questions, Product, and Comparison can run next (all just need Parser)
-3. FAQ runs last (needs both Parser AND Questions)
-
----
-
-## 🧠 The LLM Integration
-
-We use **Groq** because it's *fast*. Like, really fast.
+### Configuration
 
 | Setting | Value |
 |---------|-------|
-| **Provider** | Groq Cloud |
-| **Model** | `llama-3.3-70b-versatile` |
-| **Output format** | Structured JSON |
-| **Rate limit handling** | Exponential backoff (10s → 20s → 30s) |
-| **Max retries** | 3 |
-| **Delay between agents** | 5 seconds |
+| Provider | Groq Cloud |
+| Model | `llama-3.3-70b-versatile` |
+| Output Mode | Structured JSON prompts |
+| Max Retries | 3 |
+| Backoff Strategy | Exponential (10s, 20s, 30s) |
+| Inter-Agent Delay | 5 seconds |
 
-The `llm_client.py` handles all the messy stuff:
-- Cleaning up markdown from responses
-- Extracting JSON from freeform text
-- Retrying on rate limits
-- Validating responses
+### Error Handling
 
----
+The LLM client implements several robustness features:
 
-## 📐 The Template System
-
-Templates aren't just formatting — they're **validation**. Each template checks that the agent output is complete before structuring it.
-
-| Template | Validates | Output Shape |
-|----------|-----------|--------------|
-| **FAQTemplate** | Every Q&A has both question AND answer | `{page_type, faqs: [{question, answer}]}` |
-| **ProductTemplate** | Has name, benefits, usage, ingredients, price | `{page_type, sections: {...}}` |
-| **ComparisonTemplate** | Has both products and metrics | `{page_type, products: [], comparison_metrics: []}` |
-
-If something's missing, the template throws an error. No silent failures.
+- **Rate limit detection** — Identifies 429 errors and rate-related messages
+- **Automatic retry** — Exponential backoff with configurable max attempts
+- **JSON extraction** — Regex-based parsing to handle markdown-wrapped responses
+- **Response validation** — Ensures valid JSON before returning to agents
 
 ---
 
-## 🛠️ Utility Functions
+## Template System
 
-The `content_blocks/generators.py` has pure utility functions for deterministic operations:
+Templates provide structure and validation for agent outputs:
 
-| Function | What It Does |
-|----------|--------------|
-| `extract_product_summary` | Quick one-liner summary of a product |
-| `calculate_price_difference` | Math for price comparisons |
-| `extract_common_ingredients` | Find what two products share |
-| `extract_unique_ingredients` | Find what's unique to one product |
+| Template | Required Fields | Output Structure |
+|----------|-----------------|------------------|
+| FAQTemplate | question, answer for each item | `{page_type, faqs: [{question, answer}]}` |
+| ProductTemplate | name, benefits, how_to_use, key_ingredients, price | `{page_type, sections: {...}}` |
+| ComparisonTemplate | product_a, product_b, comparison_metrics | `{page_type, products: [], comparison_metrics: []}` |
 
-These don't use the LLM — they're just reliable helper functions.
-
----
-
-## 📂 Output Files
-
-After a successful run, you'll find these in `output/`:
-
-| File | What's Inside |
-|------|---------------|
-| `faq.json` | 15 Q&As across 5 categories |
-| `product_page.json` | Complete product page sections |
-| `comparison_page.json` | Two products + detailed comparison metrics |
-
-All files are **machine-readable JSON** — plug them into your CMS, API, or frontend.
+Templates validate inputs and raise `ValueError` if required fields are missing, preventing malformed outputs.
 
 ---
 
-## 🚀 Running the System
+## Utility Functions
+
+The `content_blocks/generators.py` module provides deterministic helper functions:
+
+| Function | Purpose |
+|----------|---------|
+| `extract_product_summary` | Generate one-line product summary |
+| `calculate_price_difference` | Compute price delta and percentage |
+| `extract_common_ingredients` | Find shared ingredients between products |
+| `extract_unique_ingredients` | Identify ingredients unique to one product |
+| `generate_content_block` | Create structured content block wrapper |
+| `merge_content_blocks` | Combine multiple blocks into single output |
+
+These functions are pure (no LLM calls) and deterministic, suitable for operations where exact reproducibility is needed.
+
+---
+
+## Output Files
+
+| File | Description |
+|------|-------------|
+| `output/faq.json` | 15 Q&A pairs organized by category |
+| `output/product_page.json` | Complete product page with all sections |
+| `output/comparison_page.json` | Two-product comparison with detailed metrics |
+
+All outputs are machine-readable JSON, suitable for direct integration with CMS platforms, APIs, or frontend applications.
+
+---
+
+## Running the System
 
 ### Prerequisites
-- Python 3.8 or higher
-- A Groq API key (free tier works!)
 
-### Steps
+- Python 3.8 or higher
+- Groq API key
+
+### Setup and Execution
 
 ```bash
-# 1. Install dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# 2. Set up your API key
+# Configure API key
 echo "GROQ_API_KEY=your_key_here" > .env
 
-# 3. Run it
+# Execute pipeline
 python main.py
 ```
 
-### What You'll See
+### Expected Output
 
 ```
 ============================================================
@@ -314,13 +296,20 @@ Agent parser completed.
 Executing agent: questions...
 Agent questions completed.
 Waiting 5s to respect rate limits...
-Executing agent: product...
-Agent product completed.
 ...
 
-✓ faq.json
-✓ product_page.json
-✓ comparison_page.json
+  [parser] completed
+  [questions] completed
+  [faq] completed
+  [product] completed
+  [comparison] completed
+
+----------------------------------------
+Saving outputs to JSON files...
+----------------------------------------
+  ✓ faq.json
+  ✓ product_page.json
+  ✓ comparison_page.json
 
 ============================================================
 All pages generated successfully!
@@ -330,45 +319,60 @@ Outputs saved to: output/
 
 ---
 
-## 🔑 Key Design Principles
+## Design Principles
 
-### 1. Autonomy
-Each agent makes its own decisions. The orchestrator doesn't tell agents *how* to do their job — just *when* they can start.
+### Agent Autonomy
 
-### 2. Modularity
-Every piece is a separate module:
-- Swap the LLM? Just edit `llm_client.py`
-- Add a new agent? Create a file in `agents/` and register it
-- Change output format? Modify the template
+Each agent implements two key methods from `BaseAgent`:
 
-### 3. Separation of Concerns
-- **Agents** = business logic
-- **Templates** = output structure
-- **LLM Client** = external API
-- **Orchestrator** = workflow coordination
-- **Models** = data validation
+- `can_execute(completed_agents)` — Returns `True` when all dependencies are satisfied
+- `execute(shared_data)` — Performs the agent's work and returns output
 
-### 4. Fail Gracefully
-Rate limits? Retry with backoff. Invalid JSON? Parse what we can. Missing field? Use sensible defaults.
+The orchestrator never dictates agent behavior — it only queries readiness and triggers execution.
+
+### Modularity
+
+The system is organized into independent modules:
+
+| Module | Responsibility |
+|--------|----------------|
+| `src/agents/` | Individual agent implementations |
+| `src/models/` | Data validation schemas |
+| `src/templates/` | Output structure definitions |
+| `src/content_blocks/` | Pure utility functions |
+| `src/llm_client.py` | External API abstraction |
+| `src/orchestrator.py` | Workflow coordination |
+
+This separation allows changes to one component without affecting others.
+
+### Graceful Degradation
+
+The system handles failures without crashing:
+
+- Rate limits trigger automatic retry with backoff
+- Missing LLM response fields fall back to defaults
+- Template validation catches malformed outputs early
 
 ---
 
-## 🛠️ Tech Stack
+## Technology Stack
 
 | Layer | Technology |
 |-------|------------|
 | Language | Python 3.8+ |
-| LLM | Groq Cloud (Llama 3.3 70B) |
-| Validation | Pydantic |
-| Config | python-dotenv |
-| Output | JSON |
+| LLM Provider | Groq Cloud |
+| Model | Llama 3.3 70B Versatile |
+| Data Validation | Pydantic |
+| Environment | python-dotenv |
+| Output Format | JSON |
 
 ---
 
-## 🎉 That's It!
+## Summary
 
-You now understand how 5 specialized agents collaborate to turn simple product data into rich, structured content.
+This multi-agent system demonstrates how autonomous, specialized agents can collaborate through a well-defined dependency graph to produce structured content. The modular design supports extensibility, the DAG structure ensures predictable execution, and the LLM integration enables high-quality content generation.
 
-The key insight: **let each agent be an expert at one thing**, and **let the orchestrator handle coordination**. It's simpler, more maintainable, and more powerful than a monolithic script.
-
-Happy generating! 🚀
+The architecture prioritizes:
+- **Clarity** — Each component has a single, well-defined purpose
+- **Reliability** — Error handling and validation at every layer
+- **Extensibility** — New agents can be added with minimal changes
