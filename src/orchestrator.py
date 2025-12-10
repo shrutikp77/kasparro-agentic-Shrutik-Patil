@@ -5,6 +5,7 @@ This module coordinates the execution of multiple agents in the content generati
 It manages the workflow using DAG-based orchestration for autonomous agent execution.
 """
 
+import time
 from typing import Dict, List, Any
 from src.agents.parser_agent import DataParserAgent
 from src.agents.question_agent import QuestionGenerationAgent
@@ -43,6 +44,9 @@ class AgentOrchestrator:
         
         # Create shared_data dict for agents to read/write
         self.shared_data: Dict[str, Any] = {}
+        
+        # Delay between LLM-using agents (seconds) to respect rate limits
+        self.agent_delay = 5
     
     def execute_dag(self, raw_product_data: Dict) -> Dict[str, Any]:
         """
@@ -63,6 +67,9 @@ class AgentOrchestrator:
         # Get total number of agents
         total_agents = len(self.agents)
         
+        # Agents that use LLM (need delay after execution)
+        llm_agents = {"questions", "product", "comparison", "faq"}
+        
         # Execute DAG until all agents are completed
         while len(completed_agents) < total_agents:
             # Find agents that can execute (dependencies satisfied)
@@ -73,6 +80,8 @@ class AgentOrchestrator:
             
             # Execute those agents (sequentially for simplicity)
             for agent_id, agent in executable_agents:
+                print(f"Executing agent: {agent_id}...")
+                
                 # Execute the agent
                 output = agent.execute(self.shared_data)
                 
@@ -81,6 +90,13 @@ class AgentOrchestrator:
                 
                 # Add agent_id to completed_agents
                 completed_agents.append(agent_id)
+                
+                print(f"Agent {agent_id} completed.")
+                
+                # Add delay after LLM agents to respect rate limits
+                if agent_id in llm_agents and len(completed_agents) < total_agents:
+                    print(f"Waiting {self.agent_delay}s to respect rate limits...")
+                    time.sleep(self.agent_delay)
         
         # Return dict with all page outputs
         return {

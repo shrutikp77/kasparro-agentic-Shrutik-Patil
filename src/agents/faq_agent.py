@@ -1,19 +1,19 @@
 """
 FAQ Agent Module
 
-Agent responsible for generating FAQ content from product and question data.
+Agent responsible for generating FAQ content from product and question data using LLM.
 """
 
 from typing import Any, Dict, List
 from src.agents.base_agent import BaseAgent
 from src.models.schemas import Product, Question
-from src.content_blocks.generators import generate_answer_block
 from src.templates.template_definitions import FAQTemplate
+from src.llm_client import llm_client
 
 
 class FAQGenerationAgent(BaseAgent):
     """
-    Agent that generates FAQ entries from product and question data.
+    Agent that generates FAQ entries from product and question data using LLM.
     Depends on parser and questions agents.
     """
     
@@ -37,8 +37,7 @@ class FAQGenerationAgent(BaseAgent):
     
     def execute(self, shared_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute the FAQ generation agent logic.
-        Generates FAQ content using product data and generated questions.
+        Generate FAQ content using LLM.
         
         Args:
             shared_data: Shared data dictionary with 'parser' and 'questions' keys
@@ -51,17 +50,37 @@ class FAQGenerationAgent(BaseAgent):
         product: Product = shared_data["parser"]
         questions: List[Question] = shared_data["questions"]
         
-        # Select first 5 questions (mix of categories)
-        selected_questions = questions[:5]
+        # Format questions for LLM
+        questions_text = "\n".join([f"{i+1}. [{q.category}] {q.text}" for i, q in enumerate(questions)])
         
-        # Generate answers for each question using generate_answer_block
-        faq_items = []
-        for question in selected_questions:
-            answer = generate_answer_block(question, product)
-            faq_items.append({
-                "question": question.text,
-                "answer": answer
-            })
+        system_prompt = """You are a skincare product expert and customer service specialist.
+Generate helpful, accurate, and engaging FAQ answers based on product data.
+Answers should be informative yet concise (2-4 sentences each)."""
+        
+        user_prompt = f"""Generate FAQ answers for this product:
+
+Product Data:
+Name: {product.name}
+Concentration: {product.concentration}
+Skin Type: {', '.join(product.skin_type)}
+Ingredients: {', '.join(product.key_ingredients)}
+Benefits: {', '.join(product.benefits)}
+Usage: {product.how_to_use}
+Side Effects: {product.side_effects}
+Price: {product.price}
+
+Questions to answer:
+{questions_text}
+
+Return a JSON array with this structure:
+[
+  {{"question": "exact question text", "answer": "helpful answer based on product data"}},
+  ...
+]
+
+Base all answers on the product data provided. Be helpful and accurate. Return ONLY valid JSON."""
+        
+        faq_items = llm_client.generate_json(system_prompt, user_prompt, max_tokens=2000)
         
         # Use FAQTemplate to build final output
         faq_output = FAQTemplate.build(faq_items)
@@ -70,3 +89,4 @@ class FAQGenerationAgent(BaseAgent):
         self.mark_complete()
         
         return faq_output
+

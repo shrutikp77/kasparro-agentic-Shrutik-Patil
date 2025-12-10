@@ -1,199 +1,79 @@
 """
 Content Generators Module
 
-Reusable content generation logic and utilities.
+Utility functions for deterministic content operations.
+LLM handles intelligent content generation; these are fallback/utility functions.
 """
 
+import re
 from typing import Dict, Any, List
-from src.models.schemas import Product, Question
+from src.models.schemas import Product
 
 
-def generate_benefits_block(product: Product) -> str:
+def extract_product_summary(product: Product) -> str:
     """
-    Generate a formatted string describing product benefits.
+    Quick summary extraction without LLM (deterministic).
     
     Args:
-        product: Product instance with benefits information
+        product: Product instance
         
     Returns:
-        Formatted string describing product benefits
+        Brief product summary string
     """
-    benefits_list = ", ".join(product.benefits)
-    return f"{product.name} offers the following benefits: {benefits_list}. Formulated with {product.concentration} for optimal results."
+    return f"{product.name} - {product.concentration} for {', '.join(product.skin_type)} skin"
 
 
-def generate_usage_block(product: Product) -> str:
+def calculate_price_difference(price_a: str, price_b: str) -> Dict[str, str]:
     """
-    Generate formatted usage instructions.
+    Pure math calculation for price comparison (deterministic).
     
     Args:
-        product: Product instance with usage information
+        price_a: First price string (e.g., "₹1299")
+        price_b: Second price string (e.g., "₹899")
         
     Returns:
-        Formatted usage instructions string
+        Dictionary with difference amount and percentage
     """
-    skin_types = ", ".join(product.skin_type)
-    return f"How to use {product.name}: {product.how_to_use}. Best suited for {skin_types} skin types."
+    match_a = re.search(r'\d+', price_a)
+    match_b = re.search(r'\d+', price_b)
+    
+    if not match_a or not match_b:
+        return {"difference": "N/A", "percentage": "N/A"}
+    
+    a = int(match_a.group())
+    b = int(match_b.group())
+    diff = abs(a - b)
+    percent = round((diff / min(a, b)) * 100, 1) if min(a, b) > 0 else 0
+    
+    return {"difference": f"₹{diff}", "percentage": f"{percent}%"}
 
 
-def generate_safety_block(product: Product) -> str:
+def extract_common_ingredients(product_a: Product, product_b: Product) -> List[str]:
     """
-    Generate safety and side effects information.
+    Find common ingredients between two products (deterministic).
     
     Args:
-        product: Product instance with safety information
+        product_a: First product
+        product_b: Second product
         
     Returns:
-        Formatted safety information string
+        List of common ingredients
     """
-    return f"Safety Information for {product.name}: {product.side_effects}. Please perform a patch test before regular use."
+    return list(set(product_a.key_ingredients) & set(product_b.key_ingredients))
 
 
-def generate_ingredients_block(product: Product) -> str:
+def extract_unique_ingredients(product: Product, other_product: Product) -> List[str]:
     """
-    Generate formatted ingredients description.
+    Find ingredients unique to a product (deterministic).
     
     Args:
-        product: Product instance with ingredients information
+        product: Product to find unique ingredients for
+        other_product: Product to compare against
         
     Returns:
-        Formatted ingredients description string
+        List of unique ingredients
     """
-    ingredients_list = ", ".join(product.key_ingredients)
-    return f"{product.name} contains the following key ingredients: {ingredients_list}. Concentration: {product.concentration}."
-
-
-def compare_ingredients_block(product_a: Product, product_b: Product) -> Dict[str, Any]:
-    """
-    Compare ingredients between two products.
-    
-    Args:
-        product_a: First product to compare
-        product_b: Second product to compare
-        
-    Returns:
-        Dictionary with comparison of ingredients between two products
-    """
-    common_ingredients = list(set(product_a.key_ingredients) & set(product_b.key_ingredients))
-    unique_to_a = list(set(product_a.key_ingredients) - set(product_b.key_ingredients))
-    unique_to_b = list(set(product_b.key_ingredients) - set(product_a.key_ingredients))
-    
-    return {
-        "product_a_name": product_a.name,
-        "product_b_name": product_b.name,
-        "product_a_ingredients": product_a.key_ingredients,
-        "product_b_ingredients": product_b.key_ingredients,
-        "common_ingredients": common_ingredients,
-        "unique_to_product_a": unique_to_a,
-        "unique_to_product_b": unique_to_b,
-        "product_a_concentration": product_a.concentration,
-        "product_b_concentration": product_b.concentration
-    }
-
-
-def compare_price_block(product_a: Product, product_b: Product) -> Dict[str, Any]:
-    """
-    Compare prices and value proposition between two products.
-    
-    Args:
-        product_a: First product to compare
-        product_b: Second product to compare
-        
-    Returns:
-        Dictionary comparing prices and value proposition
-    """
-    return {
-        "product_a_name": product_a.name,
-        "product_b_name": product_b.name,
-        "product_a_price": product_a.price,
-        "product_b_price": product_b.price,
-        "product_a_benefits_count": len(product_a.benefits),
-        "product_b_benefits_count": len(product_b.benefits),
-        "product_a_ingredients_count": len(product_a.key_ingredients),
-        "product_b_ingredients_count": len(product_b.key_ingredients),
-        "comparison_summary": f"{product_a.name} ({product_a.price}) vs {product_b.name} ({product_b.price})"
-    }
-
-
-def generate_answer_block(question: Question, product: Product) -> str:
-    """
-    Generate an answer based on question category and content.
-    Analyzes question text to provide unique, relevant answers.
-    
-    Args:
-        question: Question instance with category and text information
-        product: Product instance with relevant data
-        
-    Returns:
-        Unique, relevant answer string based on question content
-    """
-    question_text = question.text.lower()
-    category = question.category.upper()
-    
-    # First, check for specific keywords in question text for unique answers
-    if "ingredient" in question_text:
-        ingredients_list = ", ".join(product.key_ingredients)
-        return f"{product.name} contains these key ingredients: {ingredients_list}. These are carefully selected to provide {', '.join(product.benefits).lower()}."
-    
-    if "concentration" in question_text:
-        return f"The concentration of {product.name} is {product.concentration}. This concentration is optimized for effectiveness while being suitable for {', '.join(product.skin_type).lower()} skin types."
-    
-    if "benefit" in question_text:
-        benefits_list = ", ".join(product.benefits)
-        return f"The key benefits of {product.name} include: {benefits_list}. With {product.concentration}, it delivers visible results."
-    
-    if "side effect" in question_text or "warning" in question_text:
-        return f"Possible side effects of {product.name}: {product.side_effects}. If irritation persists, discontinue use and consult a dermatologist."
-    
-    if "avoid" in question_text or "who should" in question_text:
-        return f"People with extremely sensitive skin should patch test {product.name} first. {product.side_effects}. Pregnant or nursing women should consult a doctor before use."
-    
-    if "how" in question_text and ("apply" in question_text or "use" in question_text):
-        return f"To apply {product.name}: {product.how_to_use}. For best results, use consistently as part of your skincare routine."
-    
-    if "when" in question_text or "time" in question_text:
-        return f"The best time to use {product.name}: {product.how_to_use}. Vitamin C serums are most effective when applied in the morning for antioxidant protection."
-    
-    if "often" in question_text or "frequency" in question_text:
-        return f"For {product.name}, daily use is recommended. {product.how_to_use}. Start with once daily and increase as your skin adjusts."
-    
-    if "price" in question_text or "cost" in question_text:
-        return f"{product.name} is priced at {product.price}. This includes {product.concentration} with key ingredients like {', '.join(product.key_ingredients)}."
-    
-    if "buy" in question_text or "where" in question_text:
-        return f"You can purchase {product.name} at {product.price} from authorized retailers, the official website, or major e-commerce platforms."
-    
-    if "worth" in question_text or "value" in question_text:
-        return f"At {product.price}, {product.name} offers excellent value with {product.concentration} and benefits including {', '.join(product.benefits).lower()}. It's suitable for {', '.join(product.skin_type).lower()} skin."
-    
-    if "compare" in question_text or "alternative" in question_text or "vs" in question_text:
-        return f"{product.name} stands out with {product.concentration} and unique ingredients: {', '.join(product.key_ingredients)}. Key differentiators include: {', '.join(product.benefits)}."
-    
-    if "does" in question_text and "do" in question_text:
-        benefits_list = ", ".join(product.benefits)
-        return f"{product.name} is designed to provide: {benefits_list}. It's formulated with {product.concentration} for optimal effectiveness."
-    
-    # Fall back to category-based answers
-    if category == "INFORMATIONAL":
-        benefits_list = ", ".join(product.benefits)
-        return f"{product.name} is formulated with {product.concentration}. Key benefits include: {benefits_list}."
-    
-    elif category == "SAFETY":
-        return f"Regarding safety for {product.name}: {product.side_effects}. Always perform a patch test before regular use."
-    
-    elif category == "USAGE":
-        skin_types = ", ".join(product.skin_type)
-        return f"Usage instructions for {product.name}: {product.how_to_use}. This product is suitable for {skin_types} skin types."
-    
-    elif category == "PURCHASE":
-        return f"{product.name} is available at {product.price}. It contains {', '.join(product.key_ingredients)} and is suitable for {', '.join(product.skin_type)} skin."
-    
-    elif category == "COMPARISON":
-        ingredients_list = ", ".join(product.key_ingredients)
-        return f"{product.name} features {product.concentration} with key ingredients: {ingredients_list}. Benefits include: {', '.join(product.benefits)}."
-    
-    else:
-        return f"For more information about {product.name}, please refer to the product details or contact customer support."
+    return list(set(product.key_ingredients) - set(other_product.key_ingredients))
 
 
 def generate_content_block(block_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -221,3 +101,4 @@ def merge_content_blocks(blocks: List[Dict[str, Any]]) -> Dict[str, Any]:
         Merged content
     """
     return {"blocks": blocks}
+
