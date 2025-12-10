@@ -117,17 +117,63 @@ def compare_price_block(product_a: Product, product_b: Product) -> Dict[str, Any
 
 def generate_answer_block(question: Question, product: Product) -> str:
     """
-    Generate an answer based on question category and product information.
+    Generate an answer based on question category and content.
+    Analyzes question text to provide unique, relevant answers.
     
     Args:
-        question: Question instance with category information
+        question: Question instance with category and text information
         product: Product instance with relevant data
         
     Returns:
-        Relevant answer string based on question category
+        Unique, relevant answer string based on question content
     """
+    question_text = question.text.lower()
     category = question.category.upper()
     
+    # First, check for specific keywords in question text for unique answers
+    if "ingredient" in question_text:
+        ingredients_list = ", ".join(product.key_ingredients)
+        return f"{product.name} contains these key ingredients: {ingredients_list}. These are carefully selected to provide {', '.join(product.benefits).lower()}."
+    
+    if "concentration" in question_text:
+        return f"The concentration of {product.name} is {product.concentration}. This concentration is optimized for effectiveness while being suitable for {', '.join(product.skin_type).lower()} skin types."
+    
+    if "benefit" in question_text:
+        benefits_list = ", ".join(product.benefits)
+        return f"The key benefits of {product.name} include: {benefits_list}. With {product.concentration}, it delivers visible results."
+    
+    if "side effect" in question_text or "warning" in question_text:
+        return f"Possible side effects of {product.name}: {product.side_effects}. If irritation persists, discontinue use and consult a dermatologist."
+    
+    if "avoid" in question_text or "who should" in question_text:
+        return f"People with extremely sensitive skin should patch test {product.name} first. {product.side_effects}. Pregnant or nursing women should consult a doctor before use."
+    
+    if "how" in question_text and ("apply" in question_text or "use" in question_text):
+        return f"To apply {product.name}: {product.how_to_use}. For best results, use consistently as part of your skincare routine."
+    
+    if "when" in question_text or "time" in question_text:
+        return f"The best time to use {product.name}: {product.how_to_use}. Vitamin C serums are most effective when applied in the morning for antioxidant protection."
+    
+    if "often" in question_text or "frequency" in question_text:
+        return f"For {product.name}, daily use is recommended. {product.how_to_use}. Start with once daily and increase as your skin adjusts."
+    
+    if "price" in question_text or "cost" in question_text:
+        return f"{product.name} is priced at {product.price}. This includes {product.concentration} with key ingredients like {', '.join(product.key_ingredients)}."
+    
+    if "buy" in question_text or "where" in question_text:
+        return f"You can purchase {product.name} at {product.price} from authorized retailers, the official website, or major e-commerce platforms."
+    
+    if "worth" in question_text or "value" in question_text:
+        return f"At {product.price}, {product.name} offers excellent value with {product.concentration} and benefits including {', '.join(product.benefits).lower()}. It's suitable for {', '.join(product.skin_type).lower()} skin."
+    
+    if "compare" in question_text or "alternative" in question_text or "vs" in question_text:
+        return f"{product.name} stands out with {product.concentration} and unique ingredients: {', '.join(product.key_ingredients)}. Key differentiators include: {', '.join(product.benefits)}."
+    
+    if "does" in question_text and "do" in question_text:
+        benefits_list = ", ".join(product.benefits)
+        return f"{product.name} is designed to provide: {benefits_list}. It's formulated with {product.concentration} for optimal effectiveness."
+    
+    # Fall back to category-based answers
     if category == "INFORMATIONAL":
         benefits_list = ", ".join(product.benefits)
         return f"{product.name} is formulated with {product.concentration}. Key benefits include: {benefits_list}."
