@@ -4,11 +4,12 @@ Main Entry Point
 Kasparro AI - Agentic Content Generation System
 
 This is the main entry point for the content generation application.
-Executes the multi-agent DAG pipeline for content generation.
+Executes the multi-agent LangGraph pipeline for content generation.
 """
 
 from src.orchestrator import AgentOrchestrator
 from src.utils import write_json_output
+from src.config import SAMPLE_PRODUCT_DATA
 
 
 def main():
@@ -21,17 +22,8 @@ def main():
     
     print("\nStarting multi-agent content generation pipeline...")
     
-    # Define the hardcoded product data
-    product_data = {
-        "name": "GlowBoost Vitamin C Serum",
-        "concentration": "10% Vitamin C",
-        "skin_type": ["Oily", "Combination"],
-        "key_ingredients": ["Vitamin C", "Hyaluronic Acid"],
-        "benefits": ["Brightening", "Fades dark spots"],
-        "how_to_use": "Apply 2-3 drops in the morning before sunscreen",
-        "side_effects": "Mild tingling for sensitive skin",
-        "price": "₹699"
-    }
+    # Use product data from centralized config
+    product_data = SAMPLE_PRODUCT_DATA
     
     print(f"\nProduct: {product_data['name']}")
     print(f"Price: {product_data['price']}")
