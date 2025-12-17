@@ -84,11 +84,12 @@ class AgentOrchestrator:
 
 
 def main():
-    """Main entry point for the orchestrator."""
-    from src.config import SAMPLE_PRODUCT_DATA
+    """Main entry point for the orchestrator (for testing)."""
+    from src.utils import load_product_from_dataset
+    from src.config import DEFAULT_DATASET_PATH
     
-    # Use product data from centralized config
-    raw_product_data = SAMPLE_PRODUCT_DATA
+    # Load from dataset file
+    raw_product_data = load_product_from_dataset(DEFAULT_DATASET_PATH)
     
     # Create and run orchestrator
     orchestrator = AgentOrchestrator()

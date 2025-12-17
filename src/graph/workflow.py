@@ -13,7 +13,7 @@ from langgraph.graph import StateGraph, START, END
 from src.graph.state import ContentGenerationState
 from src.models.schemas import Product, Question
 from src.templates.template_definitions import FAQTemplate, ProductTemplate, ComparisonTemplate
-from src.llm_client import llm_client
+from src.llm_client import get_llm_client
 
 
 # Rate limiting delay between LLM calls (configurable via env)
@@ -91,6 +91,7 @@ Return ONLY a JSON array with this structure:
 
 Use natural language. Make questions realistic and varied."""
     
+    llm_client = get_llm_client()
     response = llm_client.generate_json(system_prompt, user_prompt)
     
     questions = []
@@ -141,6 +142,7 @@ Generate a JSON object with these fields:
 
 Write naturally, professionally. Base everything on the data provided. Return ONLY valid JSON."""
     
+    llm_client = get_llm_client()
     content = llm_client.generate_json(system_prompt, user_prompt, max_tokens=1500)
     
     # Ensure all fields have defaults
@@ -203,6 +205,7 @@ Create a fictional competitor product (Product B) with this exact JSON structure
 
 Make it realistic and competitive. Return ONLY valid JSON."""
     
+    llm_client = get_llm_client()
     product_b_data = llm_client.generate_json(system_prompt, user_prompt, max_tokens=800)
     
     # Ensure all required fields exist with defaults
@@ -261,6 +264,7 @@ Generate a JSON comparison with:
 
 Return ONLY valid JSON."""
     
+    llm_client = get_llm_client()
     comparison_metrics = llm_client.generate_json(system_prompt, user_prompt, max_tokens=1200)
     
     # Structure using template
@@ -316,6 +320,7 @@ Return a JSON array with this structure:
 
 Base all answers on the product data provided. Be helpful and accurate. Return ONLY valid JSON."""
     
+    llm_client = get_llm_client()
     faq_items = llm_client.generate_json(system_prompt, user_prompt, max_tokens=2000)
     
     # Use FAQTemplate to build final output

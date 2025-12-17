@@ -20,8 +20,12 @@ The architecture emphasizes **agent autonomy**, **modular design**, and **clean 
 |---------|-------------|
 | LangGraph Orchestration | StateGraph-based workflow with typed state management and declarative edges |
 | Autonomous Agents | Each agent independently determines when to execute based on dependency satisfaction |
-| LLM Integration | Powered by Groq's Llama 3.3 70B for fast, high-quality content generation |
-| Comprehensive Tests | 50 pytest tests covering agents, generators, and integration workflows |
+| LLM Integration | Lazy-initialized Groq Llama 3.3 70B for fast, high-quality content generation |
+| Comprehensive Tests | 50+ pytest tests covering agents, generators, and integration workflows |
+| **Hardcode-Free** | No requirement strings in code; all data loaded from external JSON files |
+| **Clean-Env Compatible** | Tests run without API key; imports don't crash in fresh environments |
+| **Strict Validation** | FAQ count ≥15 enforced; all outputs schema-validated at boundaries |
+| **CLI Support** | Command-line arguments for dataset, output dir, and product selection |
 | Modular Architecture | Easily swap agents, templates, or LLM providers without system-wide changes |
 | Production-Ready | Built-in rate limiting, retry logic, and graceful error handling |
 
@@ -67,6 +71,9 @@ The architecture emphasizes **agent autonomy**, **modular design**, and **clean 
 ### Installation
 
 ```bash
+# Clone the repository (or extract from zip)
+cd kasparro-ai-agentic-content-generation-system-Shrutik_Patil
+
 # Create and activate virtual environment
 python -m venv .venv
 .venv\Scripts\activate  # Windows
@@ -75,32 +82,57 @@ source .venv/bin/activate  # Linux/Mac
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure environment
-echo "GROQ_API_KEY=your_api_key_here" > .env
+# Configure environment (copy example and edit)
+copy .env.example .env  # Windows
+cp .env.example .env    # Linux/Mac
 
-# Run the pipeline
+# Edit .env and add your Groq API key
+# GROQ_API_KEY=your_actual_api_key_here
+```
+
+### Running the Pipeline
+
+```bash
+# Use default dataset (data/products.json)
 python main.py
+
+# Use custom dataset file
+python main.py --dataset path/to/your_products.json
+
+# Select different product from dataset (by index)
+python main.py --product-index 0
+
+# Use custom output directory
+python main.py --output-dir custom_output/
+
+# See all options
+python main.py --help
 ```
 
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run all tests (works WITHOUT Groq API key)
 pytest tests/ -v
 
 # Run specific test module
 pytest tests/test_agents.py -v
+
+# Run with coverage
+pytest tests/ --cov=src
 ```
 
 ### Output
 
-After execution, check the `output/` directory for:
+After execution, check your output directory (default: `output/`) for:
 
-| File | Contents |
-|------|----------|
-| `faq.json` | 15 Q&As across 5 categories (Informational, Safety, Usage, Purchase, Comparison) |
-| `product_page.json` | Complete product page with all content sections |
-| `comparison_page.json` | Side-by-side comparison with generated competitor analysis |
+| File | Contents | Validation |
+|------|----------|------------|
+| `faq.json` | **≥15 Q&As** across 5 categories (Informational, Safety, Usage, Purchase, Comparison) | Enforced: Must have at least 15 FAQs |
+| `product_page.json` | Complete product page with all content sections | Schema validated |
+| `comparison_page.json` | Side-by-side comparison with generated competitor analysis | Schema validated |
+
+> **Note**: All outputs are validated against strict schemas. FAQ count < 15 will raise an error.
 
 ---
 
@@ -191,9 +223,35 @@ For detailed architecture documentation, design decisions, and implementation de
 
 ---
 
-## Notes
+## Configuration
 
-- **Rate Limits**: The system includes automatic retry with exponential backoff for API rate limits
-- **Customization**: Modify product data in `main.py` to generate content for different products
-- **Extensibility**: The modular design supports adding new agents with minimal changes to existing code
-- **Configuration**: Rate limiting delay is configurable via `AGENT_DELAY` environment variable (default: 5 seconds)
+All configuration is managed via environment variables (`.env` file):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GROQ_API_KEY` | *(required)* | Your Groq API key from console.groq.com |
+| `AGENT_DELAY` | `5` | Delay between LLM calls (seconds) for rate limiting |
+| `DEFAULT_DATASET_PATH` | `data/products.json` | Default path to product dataset |
+| `OUTPUT_DIR` | `output` | Directory for generated JSON files |
+| `DEFAULT_MAX_RETRIES` | `3` | Max retries for failed LLM calls |
+| `DEFAULT_MAX_TOKENS` | `2000` | Default max tokens for LLM responses |
+
+---
+
+## Notes & Features
+
+### Clean Environment Support
+- **No hardcoded data**: All product data loaded from external `data/products.json`
+- **No import-time crashes**: System uses lazy LLM client initialization
+- **Tests work offline**: Full test suite runs without Groq API key set
+
+### Validation & Quality
+- **FAQ Count Enforced**: System validates ≥15 FAQs (assignment requirement)
+- **Schema Validation**: All outputs validated at boundaries before writing
+- **Error Handling**: Graceful failures with clear error messages
+
+### Extensibility
+- **CLI Support**: Use `--dataset`, `--product-index`, `--output-dir` arguments
+- **Rate Limiting**: Configurable delay via `AGENT_DELAY` environment variable
+- **Modular Design**: Easily add new agents or swap LLM providers
+- **Dataset Flexibility**: Support for multiple products in single dataset file

@@ -69,6 +69,63 @@ def load_json(filepath: str) -> Dict[str, Any]:
         return json.load(f)
 
 
+def load_dataset(file_path: str) -> Dict[str, Any]:
+    """
+    Load dataset from JSON file.
+    
+    Args:
+        file_path: Path to dataset JSON file
+        
+    Returns:
+        Loaded dataset dictionary
+        
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        json.JSONDecodeError: If file is not valid JSON
+    """
+    file_path = Path(file_path)
+    
+    if not file_path.exists():
+        raise FileNotFoundError(f"Dataset file not found: {file_path}")
+    
+    return load_json(str(file_path))
+
+
+def load_product_from_dataset(file_path: str, product_index: int = 0) -> Dict[str, Any]:
+    """
+    Load a specific product from dataset by index.
+    
+    Args:
+        file_path: Path to dataset JSON file
+        product_index: Index of product to load (default: 0)
+        
+    Returns:
+        Product data dictionary
+        
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        IndexError: If product_index is out of bounds
+        KeyError: If dataset doesn't have 'products' key
+    """
+    dataset = load_dataset(file_path)
+    
+    if "products" not in dataset:
+        raise KeyError("Dataset missing 'products' key")
+    
+    products = dataset["products"]
+    
+    if not products:
+        raise ValueError("Dataset 'products' list is empty")
+    
+    if product_index < 0 or product_index >= len(products):
+        raise IndexError(
+            f"Product index {product_index} out of bounds. "
+            f"Dataset has {len(products)} product(s)."
+        )
+    
+    return products[product_index]
+
+
 def save_json(data: Dict[str, Any], filepath: str, indent: int = 2) -> None:
     """
     Save data to a JSON file.

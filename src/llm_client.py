@@ -96,8 +96,36 @@ CRITICAL INSTRUCTIONS:
                     raise ValueError(f"Invalid JSON from LLM: {e}")
 
 
-# Singleton instance
-llm_client = LLMClient()
+# Global instance cache (lazy initialization)
+_llm_client_instance = None
+
+
+def get_llm_client():
+    """
+    Get or create the LLM client instance (lazy initialization).
+    
+    Returns:
+        LLMClient instance, or None if GROQ_API_KEY is not set
+        
+    Raises:
+        ValueError: If API key is required but not found
+    """
+    global _llm_client_instance
+    
+    if _llm_client_instance is None:
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            # Allow tests to run without API key
+            return None
+        _llm_client_instance = LLMClient()
+    
+    return _llm_client_instance
+
+
+def reset_llm_client():
+    """Reset the LLM client instance (useful for testing)."""
+    global _llm_client_instance
+    _llm_client_instance = None
 
 
 
